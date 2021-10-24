@@ -22,7 +22,9 @@ The bot is set up to be run using Docker. To start, do the following:
 Configuring
 -----------
 
-Make a copy of `server.cfg.template` called `server.cfg`. The only top-level value to configure is the token your bot will use to authenticate to discord for all the tasks. Everything operates using the same bot, so only one token is necessary. For more information on discord bot users, see [their documentation](https://discord.com/developers/docs/topics/oauth2#bots) See the appropriate docs to see how to configure each task.
+Make a copy of `server.cfg.template` called `server.cfg`. The only top-level value to configure is the token your bot will use to authenticate to discord for all the tasks. Everything operates using the same bot, so only one token is necessary. For more information on discord bot users, see [their documentation](https://discord.com/developers/docs/topics/oauth2#bots).
+
+See the appropriate docs for [each task](#Task_Configuration) to see how each is configured.
 
 #### `bot_token`
 
