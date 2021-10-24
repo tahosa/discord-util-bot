@@ -6,39 +6,36 @@ import config
 from peewee import (SQL, CharField, ForeignKeyField, IntegerField, Model,
                     SqliteDatabase, fn, AutoField)
 
-_LOG = logging.getLogger('scoresaber')
+_LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('database')
 
 # Uncomment these to see DB queries
 # logger = logging.getLogger('peewee')
 # logger.addHandler(logging.StreamHandler())
 # logger.setLevel(logging.DEBUG)
 
-cfg = config.Config('server.cfg')
+database = SqliteDatabase(None)
 
-db = SqliteDatabase(cfg['database'])
-
-
-'''
-Base database model so we don't have to duplicate this Meta
-'''
 class BaseModel(Model):
+    '''
+    Base database model so we don't have to duplicate this Meta
+    '''
     class Meta:
-        database = db
+        database = database
 
 
-'''
-Represents a player. Links Steam, Discord, and ScoreSaber IDs
-'''
 class Player(BaseModel):
+    '''
+    Represents a player. Links Steam, Discord, and ScoreSaber IDs
+    '''
     steam_id = CharField(primary_key=True)
     discord_id = CharField(null=True)
     scoresaber_id = CharField(unique=True, null=False)
 
 
-'''
-Individual song record. Only one per player ever exists and is updated when new high scores are recorded
-'''
 class Score(BaseModel):
+    '''
+    Individual song record. Only one per player ever exists and is updated when new high scores are recorded
+    '''
     id = AutoField()
     song_name = CharField(null=False)
     song_artist = CharField()
@@ -51,20 +48,21 @@ class Score(BaseModel):
     class Meta:
         constraints = [SQL('UNIQUE(song_hash, difficulty, player_id)')]
 
-'''
-Translate numeric difficulty as tracked by scoresaber
-'''
+
 class Difficulty(Enum):
+    '''
+    Translate numeric difficulty as tracked by scoresaber
+    '''
     EASY = 1
     NORMAL = 3
     HARD = 5
     EXPERT = 7
     EXPERT_PLUS = 9
 
-    '''
-    Outputs for use in format() and f-strings
-    '''
     def __format__(self, format_spec):
+        '''
+        Outputs for use in format() and f-strings
+        '''
         if self.value == 1:
             return 'Easy'
         elif self.value == 3:
@@ -79,39 +77,34 @@ class Difficulty(Enum):
             return Enum.__format__(self, format_spec)
 
 
-'''
-Class for interacting with the database
-'''
 class Database:
-    db = db
+    '''
+    Class for interacting with the database
+    '''
+    db = database
 
-    '''
-    Initialize the database object. Creates tables if necessary.
-    '''
-    def __init__(self):
-        if not db.table_exists('player'):
-            db.create_tables([Player, Score])
+    def __init__(self, cfg: config.Config):
+        '''
+        Initialize the database object. Creates tables if necessary.
+        '''
+        database.init(cfg['tasks.scoresaber.database'])
 
-    '''
-    Get the list of all players
-    '''
+        if not self.db.table_exists('player'):
+            self.db.create_tables([Player, Score])
+
     def get_players(self) -> List[Player]:
+        '''
+        Get the list of all players
+        '''
         return Player.select()
 
-    '''
-    Create a new player in the database
-    '''
     def create_player(self, steam_id: str, discord_id: str, scoresaber_id: str) -> Player:
+        '''
+        Create a new player in the database
+        '''
         Player.create(steam_id=steam_id, discord_id=discord_id, scoresaber_id=scoresaber_id)
         return Player.get_by_id(steam_id)
 
-    '''
-    Create or update a high score for a specific song by a player.
-
-    If a record doesn't exist, create a new high score for a song. If a record exists,
-    update it if the new score is higher. Returns true if the score was created or updated,
-    false otherwise.
-    '''
     def update_score(self,
                      player: str,
                      song_hash: str,
@@ -120,6 +113,13 @@ class Database:
                      song_name: str,
                      song_artist: str = '',
                      song_mapper: str = '') -> Score:
+        '''
+        Create or update a high score for a specific song by a player.
+
+        If a record doesn't exist, create a new high score for a song. If a record exists,
+        update it if the new score is higher. Returns true if the score was created or updated,
+        false otherwise.
+        '''
 
         # Find if there is already a score for this player in the table
         old_score = Score.select() \
@@ -147,37 +147,37 @@ class Database:
                             song_mapper=song_mapper)
 
 
-    '''
-    Get the list of scores for a specific player
-    '''
     def get_player_scores(self, player: str, limit: int = 100) -> List[Score]:
+        '''
+        Get the list of scores for a specific player
+        '''
         return Score.select().where(Score.player == player).order_by(Score.score.desc()).limit(limit)
 
 
-    '''
-    Get the current high-score records
-    '''
     def get_high_scores(self) -> List[Score]:
+        '''
+        Get the current high-score records
+        '''
         return Score.select(Score, Player, fn.Max(Score.score).alias('high_score')) \
                     .join(Player) \
                     .group_by(Score.song_hash, Score.difficulty) \
                     .prefetch(Player)
 
 
-    '''
-    Get the scores for a particular song
-    '''
     def get_song_scores(self, song_hash: str, difficulty: Difficulty) -> List[Score]:
+        '''
+        Get the scores for a particular song
+        '''
         return Score.select() \
             .join(Player) \
             .where((Score.song_hash == song_hash) & (Score.difficulty == difficulty)) \
             .order_by(Score.score.desc()) \
             .prefetch(Player)
 
-    '''
-    Search for songs and return the top score for all difficulties found, if any
-    '''
     def get_top_search(self, search_str: str) -> List[Score]:
+        '''
+        Search for songs and return the top score for all difficulties found, if any
+        '''
         # Alias partitioning from: https://charlesleifer.com/blog/querying-the-top-n-objects-per-group-with-peewee-orm/
         score_alias = Score.alias()
 

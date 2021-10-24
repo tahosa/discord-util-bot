@@ -1,8 +1,8 @@
 FROM python:3.8-alpine
 
-RUN mkdir -p /scoresaber
-COPY requirements.txt /scoresaber
-WORKDIR /scoresaber
+RUN mkdir -p /discord-util
+COPY requirements.txt /discord-util
+WORKDIR /discord-util
 
 RUN apk add --no-cache --virtual .build-deps \
     gcc \
@@ -10,6 +10,6 @@ RUN apk add --no-cache --virtual .build-deps \
   pip3 install --no-cache-dir -r requirements.txt && \
   apk del .build-deps
 
-COPY app /scoresaber
+COPY app /discord-util
 
-CMD ["python3", "scoresaber.py"]
+CMD ["python3", "app.py"]

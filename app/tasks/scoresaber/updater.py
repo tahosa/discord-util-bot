@@ -2,9 +2,8 @@ import logging
 from typing import List
 
 import aiohttp
-import requests
 
-from database import Database, Score, Difficulty
+from .database import Database, Score, Difficulty
 
 _LOG = logging.getLogger('scoresaber')
 scoresaber_url = 'https://new.scoresaber.com/api'

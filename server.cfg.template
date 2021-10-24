@@ -1,0 +1,11 @@
+bot_token: '<bot_token>'
+
+tasks: {
+    scoresaber: {
+        enabled: false
+        channels: [<numeric_channel_id>, ...]
+        database: 'scores.db'
+        power_users: ['<discord#id>', ...]
+        update_interval: 60.0
+    }
+}

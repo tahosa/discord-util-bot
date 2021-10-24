@@ -1,14 +1,13 @@
 import logging
 
 import aiohttp
-import requests
 import discord
 from peewee import IntegrityError
 
-from database import Database, Difficulty, Score
-from updater import ScoreUpdater
+from .database import Database, Difficulty, Score
+from .updater import ScoreUpdater
 
-_LOG = logging.getLogger('scoresaber')
+_LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('message_handler')
 scoresaber_url = 'https://new.scoresaber.com/api'
 
 '''
@@ -58,6 +57,11 @@ class MessageHandler:
         if len(cmd) == 3:
             (name, discriminator) = cmd[2].split('#')
             discord_user = discord.utils.get(message.guild.members, name=name, discriminator=discriminator)
+
+            if discord_user is None:
+                await message.channel.send(f'Discord user "{cmd[2]}" not found')
+                return False
+
             discord_id = discord_user.id
         else:
             discord_id = None
