@@ -17,10 +17,10 @@ class ScoreUpdater:
         self._current_high = self.database.get_high_scores()
 
 
-    '''
-    Query scoresaber for new scores and update the database. Returns a list of new records.
-    '''
     async def update(self, force_all=False) -> List[str]:
+        '''
+        Query scoresaber for new scores and update the database. Returns a list of new records.
+        '''
         players = self.database.get_players()
         new_pbs = []
 

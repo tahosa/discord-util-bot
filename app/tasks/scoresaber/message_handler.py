@@ -10,10 +10,10 @@ from .updater import ScoreUpdater
 _LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('message_handler')
 scoresaber_url = 'https://new.scoresaber.com/api'
 
-'''
-Format a score for printing
-'''
 def _format_score(score: Score) -> str:
+    '''
+    Format a score for printing
+    '''
     result = f'{score.song_name}'
 
     if score.song_artist:
@@ -35,17 +35,17 @@ class MessageHandler:
         self.database = database
         self.updater = updater
 
-    '''
-    List the steam IDs of all registered players
-    '''
     async def player_list(self, message):
+        '''
+        List the steam IDs of all registered players
+        '''
         players = [player.steam_id for player in self.database.get_players()]
         await message.channel.send(f'Player list: {", ".join(players)}')
 
-    '''
-    Register a new player
-    '''
     async def register(self, message) -> bool:
+        '''
+        Register a new player
+        '''
         cmd = message.content.split(' ')
         if len(cmd) < 2 or len(cmd) > 3:
             await message.channel.send(f'Invalid register command. Usage: `!register <steam_id> [discord#id]`')
@@ -98,10 +98,10 @@ class MessageHandler:
                     await message.channel.send(f'Player "{steam_id}" not found')
                     return False
 
-    '''
-    Get the list of scores for a player by steam ID
-    '''
     async def get_player_scores(self, message):
+        '''
+        Get the list of scores for a player by steam ID
+        '''
         cmd = message.content.split(' ')
         if(len(cmd) < 2):
             await message.channel.send(f'Invalid scores command. Usage: `!scores <steam_id> [limit]`')
@@ -122,10 +122,10 @@ class MessageHandler:
 
         await message.channel.send(reply)
 
-    '''
-    Update the list of high scores
-    '''
     async def update(self, message):
+        '''
+        Update the list of high scores
+        '''
         force = '--force' in message.content
         quiet = '--quiet' in message.content
 
@@ -144,10 +144,10 @@ class MessageHandler:
         else:
             await message.channel.send(response)
 
-    '''
-    Get a list of scores matching a search
-    '''
     async def search_top(self, message):
+        '''
+        Get a list of scores matching a search
+        '''
         search = message.content[len('!top'):].strip()
         if len(search) < 1:
             await message.channel.send('No search string specified')
