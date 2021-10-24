@@ -24,7 +24,7 @@ client = discord.Client(
 )
 
 def start():
-    if cfg['scoresaber.enabled']:
+    if cfg['tasks.scoresaber.enabled']:
         sb = scoresaber.Scoresaber(client, cfg)
         sb.run()
 
