@@ -37,7 +37,7 @@ Search for any songs whose name matches the search string and sends back the lis
 Configuration
 -------------
 
-The following values can be set in `server.cfg` under the `scoresaber` section to change the behavior of this task
+The following values can be set in `server.cfg` under the `scoresaber` section to change the behavior of this task.
 
 ### `enabled`: `bool`
 

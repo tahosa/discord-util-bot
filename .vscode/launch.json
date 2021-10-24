@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: scoresaber",
+            "name": "Python: discord-util-bot",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/app/app.py",
