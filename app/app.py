@@ -30,6 +30,10 @@ def start():
         sb.run()
         bot.add_cog(sb)
 
+    if cfg['tasks.mtg.enabled']:
+        mtg = tasks.mtg.Mtg(bot, cfg)
+        bot.add_cog(mtg)
+
 @bot.event
 async def on_ready():
     _LOG.info(f'We have logged in as {bot.user.name}')

@@ -4,6 +4,10 @@ scoresaber-bot
 This is a Discord bot for handling multiple functions within your discord server. Currently, the following tasks are available:
 
  * [`scoresaber`](app/tasks/scoresaber/README.md): Tracking scoresaber high scores among your friends
+ * [`mtg`](app/tasks/mtg/README.md): Card search for Magic: The Gathering
+ * [`uwu`](app/tasks/uwu/README.md): Fun test to see if the bot is working
+
+To see all command available from the server, get the bot running and send the message `!help` for the full list. This is also available to get help with specific commands.
 
 Running
 -------
@@ -32,7 +36,9 @@ The bot token from your Discord app page as a quoted string. This is used to aut
 
 ### Task Configuration
 
-[`scoresaber`](app/tasks/scoresaber/README.md#Configuration)
+* [`scoresaber`](app/tasks/scoresaber/README.md#Configuration)
+* [`mtg`](app/tasks/mtg/README.md#Configuration)
+* [`uwu`](app/tasks/uwu/README.md#Configuration)
 
 Developing
 ----------
