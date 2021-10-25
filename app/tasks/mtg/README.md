@@ -1,26 +1,22 @@
 Mtg
 ===
 
-This task gives channels the ability to automatically include information about Magic: The Gathering cards. It adds one command for advanced searching, and a message handler for finding card names marked to be fetched.
+This task gives channels the ability to automatically include information about Magic: The Gathering cards. It adds one command for advanced searching, and a message handler for finding card names marked to be fetched. Data is source from [Scryfall](https://scryfall.com) using [Scrython](https://github.com/NandaScott/Scrython)
 
 Using
 -----
 
 #### Look up cards mentioned in messages
 
-For the configured channels, any messages with the following syntax the bot will attempt to look up the information: `This is a message with the card [[lightning bolt]] marked for lookup`. The `[[<card name>|<set>]]` syntax is used to do an exact lookup, and if the card isn't found a message is printed. Multiple cards can be specified in each message. The `|<set>` suffix can be used to fetch a specific version of a card if the three-letter set code is provided.
+For the configured channels, any messages with the following syntax the bot will attempt to look up the information: `This is a message with the card [[lightning bolt]] marked for lookup`. The `[[<card name>|<set>]]` syntax is used to do an exact lookup, and if the card isn't found a message is printed. Multiple cards can be specified in each message. The `|<set>` suffix can be used to fetch a specific version of a card if the three-letter set code is provided. An attempt will be made to identify the exact card using Scryfall's auto-complete mechanism and fuzzy-matching.
 
 ### Commands
 
-Only one command is currently registered for this task, but it has lots of options.
+Only one command is currently registered for this task, but it is very powerful.
 
-#### `!search [name=<name>] [set=<set>] [cost=<cost>] [cmc=<cmc>] [colors=<colors>...] [supertypes=<supertypes>...] [type=<type>...] [subtypes=<subtype>...] [rarity=<rarity>] [power=<power>] [toughness=<power>] [text=<text>]`
+#### `!search <query>`
 
-This will do a relatively fuzzy search through the list of all Magic cards to meet the various criteria you set. Currently, it doesn't handle spaces very well, but that is on the list to fix.
-
-For items which can be specified more than once (e.g. type), separate the items with a comma. For example, if you want to search for cards which are both Human and Wizard, you would use `type=human,wizard`.
-
-For more details on each option, run `!help search` from an enabled channel.
+This will do a search through the list of all Magic cards currently in Scryfall to meet the various criteria you set. It uses the query engine provided by Scryfall, so any of the query options they provide in their [advanced text search](https://scryfall.com/docs/syntax) can be used.
 
 Configuration
 -------------

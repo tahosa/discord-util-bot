@@ -3,7 +3,7 @@ import config
 import discord
 from discord.ext import commands as commands
 
-from .cards import get_formatted_cards
+from .cards import get_card, scryfall_search
 
 
 def _msg_in_channel(message: discord.Message) -> bool:
@@ -30,17 +30,19 @@ class Mtg(commands.Cog):
         if not _sent_by_bot(message, self.bot) and _msg_in_channel(message):
             matches = re.findall(r'\[\[(.*?)\]\]', message.content, re.MULTILINE)
             if len(matches) > 0:
-                # TODO: lookup handler
                 cards = []
                 misses = []
                 for match in matches:
                     (card, set) = match.split('|', 1) if match.find('|') > -1 else (match, '')
-                    results = await get_formatted_cards(card_name=card, card_set=set)
+                    result = await get_card(name=card, set=set)
 
-                    if len(results) > 0:
-                        cards.append(results[0])
+                    if result is None:
+                        miss = f'"{card}"'
+                        if set:
+                            miss += f' in {set}'
+                        misses.append(miss)
                     else:
-                        misses.append(f'"{match}"')
+                        cards.append(result)
 
                 if len(misses) > 0 :
                     cards.insert(0, (None, f'No matches found for {", ".join(misses)}\n', None))
@@ -59,51 +61,34 @@ class Mtg(commands.Cog):
     @commands.command(
         help='''Search for cards in the Magic database with a wide variety of criteria
 
-        [name=<name>]                   Name of the card
-        [set=<set>]                     Set the card was printed in (any, not just original printing)
-        [cost=<cost>]                   Mana cost of the card
-        [cmc=<cmc>]                     Mana value (formerly converted mana cost) of the card
-        [colors=<colors>...]            Color(s) of the card
-        [supertypes=<supertypes>...]    Supertypes of the card
-        [type=<type>...]                Type of the card
-        [subtypes=<subtype>...]         Subtypes of the card
-        [rarity=<rarity>]               Card rarity
-        [power=<power>]                 Creature's power
-        [toughness=<power>]             Creature's toughness
-        [text=<text>]                   Rules or flavor text on the card''',
-        usage='[name=<name>] [set=<set>] [cost=<cost>] [cmc=<cmc>] [colors=<colors>...] [supertypes=<supertypes>...] [type=<type>...] [subtypes=<subtype>...] [rarity=<rarity>] [power=<power>] [toughness=<power>] [text=<text>]',
+        <query>  Scryfall advanced text query string. See: https://scryfall.com/docs/syntax''',
+        usage='<query>',
         brief='Search for a card',
         checks=[_msg_in_channel],
     )
-    async def search(self, ctx: commands.Context, *args):
+    async def search(self, ctx: commands.Context, *, arg=None):
+        if not arg:
+            await ctx.message.channel.send('You must specify search criteria. Use !help search for details on how to use this command.')
+            return
+
         page_size = Mtg._CFG['tasks.mtg.page_size']
-        search = {}
 
         try:
-            for term in args:
-                param, args = term.split('=', 1)
-                args = args.replace('\"', '')
-                search[param] = args
-
-            cards = await get_formatted_cards(search.get('name', ''), search.get('set', ''), search.get('cost', ''), \
-                        search.get('cmc', ''), search.get('colors', ''), search.get('supertypes', ''), \
-                        search.get('type', ''), search.get('subtypes', ''), search.get('rarity', ''), \
-                        search.get('power', ''), search.get('toughness', ''), search.get('text', ''), '', \
-                        page_size)
-        except ValueError:
+            (cards, error) = await scryfall_search(arg, page_size)
+        except Exception as ex:
             await ctx.message.channel.send('Error processing search. Use !help search for details on how to use this command.')
+            return
+
+        if error:
+            await ctx.message.channel.send(error)
             return
 
         if cards is None or len(cards) < 1:
             await ctx.message.channel.send('No cards found matching that search.')
             return
 
-        elif len(cards) > page_size:
-            await ctx.message.channel.send(f'{len(cards)} cards found which is more than the max of {page_size}. Please be more specific.')
-            return
-
         else:
-            cards.insert(0, (None, f'{len(cards)} results:', None))
+            cards.insert(0, (None, f'{len(cards)} result{"s" if len(cards) > 1 else ""}:', None))
             for card in cards:
                 if card[0] is None:
                     await ctx.message.channel.send(card[1])

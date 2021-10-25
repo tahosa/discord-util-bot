@@ -2,8 +2,11 @@ import logging
 import config
 import discord
 from discord.ext.commands import Bot
+import nest_asyncio
 
 import tasks
+
+nest_asyncio.apply()
 
 _LOG = logging.getLogger('discord-util')
 _LOG.setLevel(logging.INFO)

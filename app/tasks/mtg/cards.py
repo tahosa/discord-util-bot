@@ -1,13 +1,12 @@
 import aiohttp
 import io
 import logging
-from aiohttp.payload_streamer import streamer
-import mtgsdk
+import scrython
+import time
 
 _LOG = logging.getLogger('discord-util').getChild("mtg").getChild('cards')
 
-gatherer_base_url = 'https://gatherer.wizards.com/Pages/Card/Details.aspx?multiverseid='
-
+rate_limit = 0.05
 
 def format_nameline(name: str, cost: str):
     fmt_string = f'**{name}**'
@@ -22,58 +21,74 @@ def format_flavor(text: str):
     fmt_string = '_{}_'.format(text.replace('\n', '_\n_'))
     return fmt_string
 
+def format_link(url: str):
+    return url.split('?')[0]
 
-def get_cards(card_name='', card_set='', card_mana_cost='', card_cmc='', card_colors='', \
-    card_supertypes='', card_type='', card_subtypes='', card_rarity='', card_power='', \
-    card_toughness='', card_text='', page='', pageSize=5):
-    '''Get a list of cards from the MTG database'''
+async def parse_scryfall_dict(card: dict) -> 'tuple[str, str, io.BytesIO]':
+    '''
+    Parse the raw scryfall JSON ourselves
+
+    Search results only return the JSON, not the scrython Card
+    object, and we don't want to duplicate this.
+    '''
+    nameline = f'>>> {format_nameline(card["name"], card["mana_cost"])}'
+    typeline = card['type_line']
+    textline = card['oracle_text']
+    flavorline = ''
     try:
-        cards = mtgsdk.Card.where(name=card_name, set=card_set, mana_cost=card_mana_cost, cmc=card_cmc, \
-            colors=card_colors, supertypes=card_supertypes, type=card_type, subtypes=card_subtypes, \
-            rarity=card_rarity, power=card_power, toughness=card_toughness, text=card_text, \
-            page=page, pageSize=pageSize).all()
+        flavorline = f'{format_flavor(card["flavor_text"])}'
+    except KeyError:
+        pass
+    source_link = f'<{format_link(card["scryfall_uri"])}>'
 
-    except mtgsdk.MtgException as err:
-        cards = []
-        _LOG.critical(f'Error with card search:\n{err}')
+    lines = [nameline, typeline, textline, flavorline, source_link]
+    text = '\n'.join([line for line in lines if line])
 
-    return cards
-
-
-async def get_formatted_cards(card_name='', card_set='', card_mana_cost='', card_cmc='', card_colors='', \
-    card_supertypes='', card_type='', card_subtypes='', card_rarity='', card_power='', card_toughness='', \
-    card_text='', page='', pageSize=5) -> 'list[(str, str, io.BytesIO)]':
-    responses = []
-    unique_cards = []
-    cards = get_cards(card_name, card_set, card_mana_cost, card_cmc, \
-        card_colors, card_supertypes, card_type, card_subtypes, \
-        card_rarity, card_power, card_toughness, card_text)
-
-    _LOG.debug(f'Formatting {len(cards)} cards')
+    data = None
     async with aiohttp.ClientSession() as session:
-        for card in cards:
-            if card.name in unique_cards:
-                continue
-            nameline = f'>>> {format_nameline(card.name, card.mana_cost)}'
-            typeline = f'{card.type}'
-            raresetline = f'{card.set} - {card.rarity}'
-            textline = card.text
-            flavorline = f'{format_flavor(card.flavor)}'
-            source_link = f'<{gatherer_base_url}{card.multiverse_id}>' if card.multiverse_id else '_`Source Missing`_'
-
-            lines = [nameline, typeline, raresetline, textline, flavorline, source_link]
-            text = '\n'.join([line for line in lines if line])
-
-            if isinstance(card.image_url, str):
-                async with session.get(card.image_url) as resp:
-                    if resp.status != 200:
-                        text.append(f'\n{card.image_url}')
-                    else:
-                        data = io.BytesIO(await resp.read())
+        normal_uri = card['image_uris']['normal']
+        async with session.get(normal_uri) as resp:
+            if resp.status != 200:
+                text.append(f'\n{card.image_url}')
             else:
-                data = None
+                data = io.BytesIO(await resp.read())
 
-            unique_cards.append(card.name)
-            responses.append((card.name, text, data))
+    return (card['name'], text, data)
 
-    return responses
+
+async def get_card(name: str, set: str = '') -> 'tuple[str, str, io.BytesIO]':
+    '''Get a single card with near-exact matching from scryfall'''
+    try:
+        if set:
+            card = scrython.cards.Named(fuzzy=name, set=set)
+        else:
+            card = scrython.cards.Named(fuzzy=name)
+    except Exception as ex:
+        time.sleep(rate_limit)
+        auto = scrython.cards.Autocomplete(q=name, query=name)
+
+        if auto and len(auto.data()) == 1:
+            time.sleep(rate_limit)
+            card = scrython.cards.Named(exact=auto.data()[0])
+        else:
+            return None
+
+    return await parse_scryfall_dict(card.scryfallJson)
+
+
+async def scryfall_search(query: str, max: int = 5) -> 'tuple[list[tuple[str, str, io.BytesIO]], str]':
+    '''Search scryfall for cards'''
+    try:
+        cards = scrython.cards.Search(q=query)
+
+        if cards.total_cards() > max:
+            return (None, f'Found {cards.total_cards()} matches. Please narrow your search')
+
+        results = []
+        for card in cards.data():
+            results.append(await parse_scryfall_dict(card))
+            time.sleep(rate_limit)
+
+        return (results, None)
+    except Exception as ex:
+        return (None, 'Unexpected error when searching')
