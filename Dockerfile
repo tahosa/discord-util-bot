@@ -1,9 +1,9 @@
 FROM python:3.8-alpine
 
 RUN mkdir -p /discord-util
-COPY requirements.txt /discord-util
 WORKDIR /discord-util
 
+COPY requirements.txt /discord-util
 RUN apk add --no-cache --virtual .build-deps \
     gcc \
     musl-dev && \
