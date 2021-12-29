@@ -6,7 +6,7 @@ import aiohttp
 from .database import Database, Score, Difficulty
 
 _LOG = logging.getLogger('scoresaber')
-scoresaber_url = 'https://new.scoresaber.com/api'
+scoresaber_url = 'https://scoresaber.com/api'
 
 class ScoreUpdater:
     database: Database = None

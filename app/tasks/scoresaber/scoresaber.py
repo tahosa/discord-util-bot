@@ -12,7 +12,7 @@ from .database import Database, Difficulty, Score
 from .updater import ScoreUpdater
 
 _LOG = logging.getLogger('discord-util').getChild("scoresaber")
-scoresaber_url = 'https://new.scoresaber.com/api'
+scoresaber_url = 'https://scoresaber.com/api'
 
 
 def _is_power_user(ctx: commands.Context) -> bool:
