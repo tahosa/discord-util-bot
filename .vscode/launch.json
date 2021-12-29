@@ -10,6 +10,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/app/app.py",
             "cwd": "${workspaceFolder}/app",
+            "env": {
+                "LOG_LEVEL": "10"
+            },
             "console": "integratedTerminal"
         },
         {

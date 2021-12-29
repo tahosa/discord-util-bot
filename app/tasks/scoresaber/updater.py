@@ -22,6 +22,8 @@ class ScoreUpdater:
         Query scoresaber for new scores and update the database. Returns a list of new records.
         '''
         players = self.database.get_players()
+        _LOG.debug(f'Found {len(players)} players')
+
         new_pbs = []
 
         for player in players:
@@ -29,20 +31,25 @@ class ScoreUpdater:
                 _LOG.debug(f'Fetching new scores for {player.steam_id}')
                 page = 1
                 while True:
-                    async with session.get(f'{scoresaber_url}/player/{player.scoresaber_id}/scores?sort=recent&page={page}') as r:
+                    fetch_url = f'{scoresaber_url}/player/{player.scoresaber_id}/scores?sort=recent&page={page}'
+                    _LOG.debug(f'GET {fetch_url}')
+                    async with session.get(fetch_url) as r:
                         if r.status == 200:
                             json = await r.json()
-                            scores = json['scores']
+                            scores = json['playerScores']
                             _LOG.debug(f'Found {len(scores)} to parse')
-                            for score in scores:
+                            for wrapper in scores:
+                                board = wrapper['leaderboard']
+                                score = wrapper['score']
+                                _LOG.debug(f'Updating new score for {board["songName"]}')
                                 new_high = self.database.update_score(
                                     player=player.steam_id,
-                                    song_hash=score['songHash'],
-                                    song_name=score['songName'],
-                                    song_artist=score['songAuthorName'],
-                                    song_mapper=score['levelAuthorName'],
-                                    difficulty=score['difficulty'],
-                                    score=score['score'],
+                                    song_hash=board['songHash'],
+                                    song_name=board['songName'],
+                                    song_artist=board['songAuthorName'],
+                                    song_mapper=board['levelAuthorName'],
+                                    difficulty=board['difficulty']['difficulty'],
+                                    score=score['modifiedScore'],
                                 )
 
                                 if new_high and new_high not in new_pbs:

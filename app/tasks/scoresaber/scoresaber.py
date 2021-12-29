@@ -141,37 +141,38 @@ class Scoresaber(Task, commands.Cog):
         else:
             discord_id = None
 
-        async with aiohttp.ClientSession() as session, self.database.db:
-            _LOG.debug(f'Looking up `{steam_id}`')
-            url = f'{scoresaber_url}/players?search={steam_id}'
-            _LOG.debug(f'GET {url}')
-            async with session.get(url) as r:
-                _LOG.debug(f'Response from server. Code {r.status}')
+        with self.database.db:
+            async with aiohttp.ClientSession() as session:
+                _LOG.debug(f'Looking up `{steam_id}`')
+                url = f'{scoresaber_url}/players?search={steam_id}'
+                _LOG.debug(f'GET {url}')
+                async with session.get(url) as r:
+                    _LOG.debug(f'Response from server. Code {r.status}')
 
-                if r.status == 200:
-                    result = await r.json()
-                    if len(result['players']) > 0:
-                        player = result['players'][0]
-                        try:
-                            self.database.create_player(steam_id, discord_id, player['playerId'])
-                            response = f'{player["playerName"]} registered!'
-                            _LOG.info(response)
-                            await ctx.message.channel.send(response)
-                            return True
-                        except IntegrityError as ex:
-                            _LOG.exception(ex)
-                            response = f'{steam_id} is already registerd.'
-                            await ctx.message.channel.send(response)
-                            return False
-                        except Exception as ex:
-                            _LOG.exception(ex)
-                            response = f'Failed to register {steam_id}. {ex}'
-                            await ctx.message.channel.send(response)
-                            return False
+                    if r.status == 200:
+                        result = await r.json()
+                        if len(result['players']) > 0:
+                            player = result['players'][0]
+                            try:
+                                self.database.create_player(steam_id, discord_id, player['id'])
+                                response = f'{player["name"]} registered!'
+                                _LOG.info(response)
+                                await ctx.message.channel.send(response)
+                                return True
+                            except IntegrityError as ex:
+                                _LOG.exception(ex)
+                                response = f'{steam_id} is already registerd.'
+                                await ctx.message.channel.send(response)
+                                return False
+                            except Exception as ex:
+                                _LOG.exception(ex)
+                                response = f'Failed to register {steam_id}. {ex}'
+                                await ctx.message.channel.send(response)
+                                return False
 
-                if r.status == 404:
-                    await ctx.message.channel.send(f'Player "{steam_id}" not found')
-                    return False
+                    if r.status == 404:
+                        await ctx.message.channel.send(f'Player "{steam_id}" not found')
+                        return False
 
 
     @register.error

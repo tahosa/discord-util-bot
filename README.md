@@ -46,7 +46,7 @@ Developing
 The recommended use is to set up to use `pyenv` or `virtualenv` (or both) to manage the python dependencies. Currently, the bot has been developed and tested using python 3.8.
 
 ```shell
-pyenv virtualenv python3 discord-util-bot
+pyenv virtualenv <version> discord-util-bot
 pyenv activate discord-util-bot
 pip install -r requirements.txt
 ```
