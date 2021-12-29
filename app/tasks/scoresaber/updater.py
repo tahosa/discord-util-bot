@@ -3,10 +3,10 @@ from typing import List
 
 import aiohttp
 
+from . import scoresaber_url
 from .database import Database, Score, Difficulty
 
 _LOG = logging.getLogger('scoresaber')
-scoresaber_url = 'https://scoresaber.com/api'
 
 class ScoreUpdater:
     database: Database = None
@@ -29,7 +29,7 @@ class ScoreUpdater:
                 _LOG.debug(f'Fetching new scores for {player.steam_id}')
                 page = 1
                 while True:
-                    async with session.get(f'{scoresaber_url}/player/{player.scoresaber_id}/scores/recent/{page}') as r:
+                    async with session.get(f'{scoresaber_url}/player/{player.scoresaber_id}/scores?sort=recent&page={page}') as r:
                         if r.status == 200:
                             json = await r.json()
                             scores = json['scores']

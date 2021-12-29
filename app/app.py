@@ -1,3 +1,4 @@
+import os
 import logging
 import config
 import discord
@@ -9,13 +10,20 @@ import tasks
 nest_asyncio.apply()
 
 _LOG = logging.getLogger('discord-util')
-_LOG.setLevel(logging.INFO)
 
 _HANDLER = logging.StreamHandler()
 _HANDLER.addFilter(logging.Filter(name = 'discord-util'))
 _HANDLER.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
 logging.getLogger().addHandler(_HANDLER)
+
+try:
+    env_level = os.getenv('LOG_LEVEL', logging.INFO)
+    log_level = int(env_level)
+    _LOG.setLevel(log_level)
+except ValueError:
+    _LOG.setLevel(logging.INFO)
+    _LOG.error(f'Could not parse log level "{env_level}" from env. Log level must be an int. Defaulting to INFO')
+
 
 cfg = config.Config('server.cfg')
 

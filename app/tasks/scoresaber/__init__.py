@@ -1,0 +1,1 @@
+scoresaber_url = 'https://scoresaber.com/api'

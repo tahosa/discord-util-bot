@@ -8,11 +8,11 @@ from peewee import IntegrityError
 
 from ..task import Task
 
+from . import scoresaber_url
 from .database import Database, Difficulty, Score
 from .updater import ScoreUpdater
 
 _LOG = logging.getLogger('discord-util').getChild("scoresaber")
-scoresaber_url = 'https://scoresaber.com/api'
 
 
 def _is_power_user(ctx: commands.Context) -> bool:
@@ -143,7 +143,7 @@ class Scoresaber(Task, commands.Cog):
 
         async with aiohttp.ClientSession() as session, self.database.db:
             _LOG.debug(f'Looking up `{steam_id}`')
-            url = f'{scoresaber_url}/players/by-name/{steam_id}'
+            url = f'{scoresaber_url}/players?search={steam_id}'
             _LOG.debug(f'GET {url}')
             async with session.get(url) as r:
                 _LOG.debug(f'Response from server. Code {r.status}')
