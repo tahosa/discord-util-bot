@@ -6,7 +6,8 @@ import aiohttp
 from . import scoresaber_url
 from .database import Database, Score, Difficulty
 
-_LOG = logging.getLogger('scoresaber')
+_LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('updater')
+
 
 class ScoreUpdater:
     database: Database = None
@@ -24,6 +25,7 @@ class ScoreUpdater:
         players = self.database.get_players()
         _LOG.debug(f'Found {len(players)} players')
 
+        limit = 10 if not force_all else 100
         new_pbs = []
 
         for player in players:
@@ -31,17 +33,21 @@ class ScoreUpdater:
                 _LOG.debug(f'Fetching new scores for {player.steam_id}')
                 page = 1
                 while True:
-                    fetch_url = f'{scoresaber_url}/player/{player.scoresaber_id}/scores?sort=recent&page={page}'
-                    _LOG.debug(f'GET {fetch_url}')
+                    fetch_url = f'{scoresaber_url}/player/{player.scoresaber_id}/scores?sort=recent&limit={limit}&page={page}'
+                    _LOG.log(level = 5, msg = f'GET {fetch_url}')
                     async with session.get(fetch_url) as r:
                         if r.status == 200:
                             json = await r.json()
                             scores = json['playerScores']
+                            if len(scores) <= 0:
+                                _LOG.debug(f'No more scores to parse')
+                                break
+
                             _LOG.debug(f'Found {len(scores)} to parse')
                             for wrapper in scores:
                                 board = wrapper['leaderboard']
                                 score = wrapper['score']
-                                _LOG.debug(f'Updating new score for {board["songName"]}')
+                                _LOG.log(level = 5, msg = f'Updating new score for {board["songName"]}')
                                 new_high = self.database.update_score(
                                     player=player.steam_id,
                                     song_hash=board['songHash'],

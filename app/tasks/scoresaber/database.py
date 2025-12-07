@@ -128,7 +128,7 @@ class Database:
             .limit(1)
 
         if len(old_score): # Score already recorded
-            _LOG.debug(f'Found old score of {old_score[0].score} for {player} on {song_name}')
+            _LOG.log(level = 5, msg = f'Found old score of {old_score[0].score} for {player} on {song_name}')
             if score > old_score[0].score: # Is it higher than what we have?
                 old_score[0].score = score
                 old_score[0].save()

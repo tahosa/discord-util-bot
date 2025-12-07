@@ -17,7 +17,7 @@ _LOG = logging.getLogger('discord-util').getChild("scoresaber")
 
 def _is_power_user(ctx: commands.Context) -> bool:
     '''Check if the message was sent by a configured power user'''
-    return f'{ctx.author.name}#{ctx.author.discriminator}' in Scoresaber._CFG['tasks.scoresaber.power_users']
+    return ctx.author.id in Scoresaber._CFG['tasks.scoresaber.power_users']
 
 
 def _msg_in_channel(ctx: commands.Context) -> bool:
@@ -78,6 +78,7 @@ class Scoresaber(Task, commands.Cog):
         checks=[_msg_in_channel, _is_power_user],
     )
     async def update(self, ctx: commands.Context, *args):
+        _LOG.debug('update requested: %s', ctx.message.content)
         force = '--force' in ctx.message.content
         quiet = '--quiet' in ctx.message.content
 
@@ -114,7 +115,7 @@ class Scoresaber(Task, commands.Cog):
         <steam_id>    Steam ID of the player to register. The full name must be used, but may still have errors if the name is not truly unique
         [discord#id]  (Optional) Discord identifier to tag in messages related to this player
         ''',
-        usage='<steam_id> [discord#id]',
+        usage='<steam_id> [discord_name]',
         brief='Register a player',
         checks=[_msg_in_channel,_is_power_user],
     )
@@ -123,15 +124,14 @@ class Scoresaber(Task, commands.Cog):
         Register a new player
         '''
         if len(args) < 1 or len(args) > 2:
-            await ctx.message.channel.send(f'Invalid register command. Usage: `!register <steam_id> [discord#id]`')
+            await ctx.message.channel.send(f'Invalid register command. Usage: `!register <steam_id> [discord_name]`')
             return
 
         steam_id = args[0]
 
         # If we were given a discord ID, look them up; they must be in the server users
         if len(args) == 2:
-            (name, discriminator) = args[1].split('#')
-            discord_user = discord.utils.get(ctx.message.guild.members, name=name, discriminator=discriminator)
+            discord_user = discord.utils.get(ctx.message.guild.members, name=args[1])
 
             if discord_user is None:
                 await ctx.message.channel.send(f'Discord user "{args[2]}" not found')

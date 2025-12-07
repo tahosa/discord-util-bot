@@ -3,11 +3,9 @@ import logging
 import config
 import discord
 from discord.ext.commands import Bot
-import nest_asyncio
 
 import tasks
 
-nest_asyncio.apply()
 
 _LOG = logging.getLogger('discord-util')
 
@@ -29,26 +27,27 @@ cfg = config.Config('server.cfg')
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 
 bot = Bot('!', intents = intents)
 
-def start():
+async def start():
     if cfg['tasks.uwu.enabled']:
-        bot.add_cog(tasks.uwu.Uwu())
+        await bot.add_cog(tasks.uwu.Uwu())
 
     if cfg['tasks.scoresaber.enabled']:
         sb = tasks.scoresaber.Scoresaber(bot, cfg)
         sb.run()
-        bot.add_cog(sb)
+        await bot.add_cog(sb)
 
     if cfg['tasks.mtg.enabled']:
         mtg = tasks.mtg.Mtg(bot, cfg)
-        bot.add_cog(mtg)
+        await bot.add_cog(mtg)
 
 @bot.event
 async def on_ready():
     _LOG.info(f'We have logged in as {bot.user.name}')
-    start()
+    await start()
 
 
 bot.run(cfg['bot_token'])

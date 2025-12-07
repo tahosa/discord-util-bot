@@ -1,4 +1,4 @@
-FROM python:3.8-alpine
+FROM python:3.14-alpine
 
 RUN mkdir -p /discord-util
 WORKDIR /discord-util
