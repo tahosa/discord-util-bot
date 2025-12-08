@@ -61,8 +61,9 @@ class Scoresaber(Task, commands.Cog):
 
             _LOG.debug(f'Found {len(new_scores)} new high scores')
             if len(new_scores) > 0:
-                for score in new_scores:
+                for (score, embed) in new_scores:
                     await channel.send(score)
+                    await channel.send(embed=embed)
 
         self._run = run
 

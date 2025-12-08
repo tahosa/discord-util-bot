@@ -2,8 +2,9 @@ import logging
 from typing import List
 
 import aiohttp
+from discord import Embed
 
-from . import scoresaber_url
+from . import scoresaber_url, beatsaver_api_url, beatsaver_maps_url
 from .database import Database, Score, Difficulty
 
 _LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('updater')
@@ -18,14 +19,14 @@ class ScoreUpdater:
         self._current_high = self.database.get_high_scores()
 
 
-    async def update(self, force_all=False) -> List[str]:
+    async def update(self, force_all=False) -> List[(str, Embed)]:
         '''
         Query scoresaber for new scores and update the database. Returns a list of new records.
         '''
         players = self.database.get_players()
         _LOG.debug(f'Found {len(players)} players')
 
-        limit = 10 if not force_all else 100
+        limit = 5 if not force_all else 100
         new_pbs = []
 
         for player in players:
@@ -47,7 +48,15 @@ class ScoreUpdater:
                             for wrapper in scores:
                                 board = wrapper['leaderboard']
                                 score = wrapper['score']
-                                _LOG.log(level = 5, msg = f'Updating new score for {board["songName"]}')
+
+                                _LOG.log(level = 5, msg = f'Updating new score for {board['songName']}')
+                                beatsaver_search_url = f'{beatsaver_api_url}/maps/hash/{board['songHash']}'
+                                beatsaver_song_url = None
+                                async with session.get(beatsaver_search_url) as b:
+                                    if b.status == 200:
+                                        beatsaver_json = await b.json()
+                                        beatsaver_song_url = f'{beatsaver_maps_url}/{beatsaver_json['id']}'
+
                                 new_high = self.database.update_score(
                                     player=player.steam_id,
                                     song_hash=board['songHash'],
@@ -56,6 +65,8 @@ class ScoreUpdater:
                                     song_mapper=board['levelAuthorName'],
                                     difficulty=board['difficulty']['difficulty'],
                                     score=score['modifiedScore'],
+                                    image_url=board['coverImage'],
+                                    beatsaver_url=beatsaver_song_url
                                 )
 
                                 if new_high and new_high not in new_pbs:
@@ -80,9 +91,13 @@ class ScoreUpdater:
             # Save the updated list now we don't need the old scores
             self._current_high = new_overall
 
-            response: List[str] = []
+            response: List[(str, Embed)] = []
             for score in new_pbs:
                 score_string = ''
+                embed = Embed(title=score.song_name, url=score.beatsaver_url)
+
+                if score.image_url is not None:
+                    embed.set_thumbnail(url=score.image_url)
 
                 # Add the mention if there is a discord ID
                 if score.player.discord_id:
@@ -90,39 +105,35 @@ class ScoreUpdater:
                 else:
                     score_string = score.player.steam_id
 
+                embed.add_field(name='Score', value=score.score, inline=True)
+                embed.add_field(name='Difficulty', value=f'{Difficulty(score.difficulty)}', inline=True)
+
                 if score in updated_overall: # Beat another player
                     song_leaderboard = self.database.get_song_scores(score.song_hash, score.difficulty)
 
                     if len(song_leaderboard) > 1:
-                        score_string += ' beat '
-
                         old_leader = song_leaderboard[1]
+                        embed.add_field(name='Previous High Score', value=old_leader.score, inline=False)
+
                         if old_leader.player.discord_id:
-                            score_string += f'<@{old_leader.player.discord_id}>'
+                            discord_tag = f'<@{old_leader.player.discord_id}>'
+                            score_string += f' beat {discord_tag} and'
+                            embed.add_field(name='Previous Leader', value=discord_tag, inline=True)
                         else:
-                            score_string += old_leader.player.steam_id
+                            steam_id = old_leader.player.steam_id
+                            score_string += f' beat {steam_id} and'
+                            embed.add_field(name='Previous Leader', value=steam_id, inline=True)
 
-                        score_string += f'\'s high score of {old_leader.score} with a new high score of {score.score}'
 
-                    else: # Shouldn't ever get here, but just in case
-                        score_string += f' set a new high score of {score.score}'
-
-                else: # Beat their own high score
-                    score_string += f' set a new high score of {score.score}'
-
-                score_string += f' on {score.song_name}'
+                score_string += f' set a new high score!'
 
                 if score.song_artist:
-                    score_string += f' by {score.song_artist}'
+                    embed.add_field(name='Artist', value=score.song_artist, inline=False)
 
                 if score.song_mapper:
-                    score_string += f' [map by {score.song_mapper}]'
+                    embed.add_field(name='Mapper', value=score.song_mapper, inline=False)
 
-                score_string += f' ({Difficulty(score.difficulty)})'
-                response.append(score_string)
-
-            if len(response) == 0: # New PBs, but no overall new highs
-                return []
+                response.append((score_string, embed))
 
             return response
 

@@ -4,7 +4,7 @@ from enum import Enum
 
 import config
 from peewee import (SQL, CharField, ForeignKeyField, IntegerField, Model,
-                    SqliteDatabase, fn, AutoField)
+                    SqliteDatabase, fn, AutoField, TextField)
 
 _LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('database')
 
@@ -44,6 +44,8 @@ class Score(BaseModel):
     difficulty = IntegerField(null=False)
     player = ForeignKeyField(Player, backref='player')
     score = IntegerField(null=False)
+    image_url = TextField()
+    beatsaver_url = TextField()
 
     class Meta:
         constraints = [SQL('UNIQUE(song_hash, difficulty, player_id)')]
@@ -112,7 +114,9 @@ class Database:
                      score: int,
                      song_name: str,
                      song_artist: str = '',
-                     song_mapper: str = '') -> Score:
+                     song_mapper: str = '',
+                     image_url: str = None,
+                     beatsaver_url: str = None) -> Score:
         '''
         Create or update a high score for a specific song by a player.
 
@@ -129,13 +133,22 @@ class Database:
 
         if len(old_score): # Score already recorded
             _LOG.log(level = 5, msg = f'Found old score of {old_score[0].score} for {player} on {song_name}')
+
+            # Default: score wasn't higher than one already in the database
+            retval = None
+
+            if old_score[0].image_url != image_url:
+                old_score[0].image_url = image_url
+
+            if old_score[0].beatsaver_url != beatsaver_url:
+                old_score[0].beatsaver_url = beatsaver_url
+
             if score > old_score[0].score: # Is it higher than what we have?
                 old_score[0].score = score
-                old_score[0].save()
-                return old_score[0]
+                retval = old_score[0]
 
-            # Score wasn't higher than one already in the database
-            return None
+            old_score[0].save()
+            return retval
 
         else: # New song
             return Score.create(song_hash=song_hash,
@@ -144,7 +157,9 @@ class Database:
                             difficulty=difficulty,
                             song_name=song_name,
                             song_artist=song_artist,
-                            song_mapper=song_mapper)
+                            song_mapper=song_mapper,
+                            image_url=image_url,
+                            beatsaver_url=beatsaver_url)
 
 
     def get_player_scores(self, player: str, limit: int = 100) -> List[Score]:
