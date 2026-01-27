@@ -1,5 +1,6 @@
 import logging
 from typing import List
+from . import ScoresaberLeaderboard, ScoresaberScore
 
 import aiohttp
 from discord import Embed
@@ -9,9 +10,8 @@ from .database import Database, Score, Difficulty
 
 _LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('updater')
 
-
 class ScoreUpdater:
-    database: Database = None
+    database: Database
     _current_high: List[Score] = []
 
     def __init__(self, database: Database):
@@ -19,7 +19,7 @@ class ScoreUpdater:
         self._current_high = self.database.get_high_scores()
 
 
-    async def update(self, force_all=False) -> List[(str, Embed)]:
+    async def update(self, force_all=False) -> List[tuple[str, Embed]]:
         '''
         Query scoresaber for new scores and update the database. Returns a list of new records.
         '''
@@ -27,7 +27,7 @@ class ScoreUpdater:
         _LOG.debug(f'Found {len(players)} players')
 
         limit = 5 if not force_all else 100
-        new_pbs = []
+        new_pbs: List[tuple[Score, ScoresaberLeaderboard, ScoresaberScore]] = []
 
         for player in players:
             async with aiohttp.ClientSession() as session:
@@ -46,11 +46,11 @@ class ScoreUpdater:
 
                             _LOG.debug(f'Found {len(scores)} to parse')
                             for wrapper in scores:
-                                board = wrapper['leaderboard']
-                                score = wrapper['score']
+                                board = ScoresaberLeaderboard.model_validate(wrapper['leaderboard'])
+                                score = ScoresaberScore.model_validate(wrapper['score'])
 
-                                _LOG.log(level = 5, msg = f'Updating new score for {board['songName']}')
-                                beatsaver_search_url = f'{beatsaver_api_url}/maps/hash/{board['songHash']}'
+                                _LOG.log(level = 5, msg = f'Updating new score for {board.songName}')
+                                beatsaver_search_url = f'{beatsaver_api_url}/maps/hash/{board.songHash}'
                                 beatsaver_song_url = None
                                 async with session.get(beatsaver_search_url) as b:
                                     if b.status == 200:
@@ -58,19 +58,19 @@ class ScoreUpdater:
                                         beatsaver_song_url = f'{beatsaver_maps_url}/{beatsaver_json['id']}'
 
                                 new_high = self.database.update_score(
-                                    player=player.steam_id,
-                                    song_hash=board['songHash'],
-                                    song_name=board['songName'],
-                                    song_artist=board['songAuthorName'],
-                                    song_mapper=board['levelAuthorName'],
-                                    difficulty=board['difficulty']['difficulty'],
-                                    score=score['modifiedScore'],
-                                    image_url=board['coverImage'],
-                                    beatsaver_url=beatsaver_song_url
+                                    player=str(player.steam_id),
+                                    song_hash=board.songHash,
+                                    song_name=board.songName,
+                                    song_artist=board.songAuthorName,
+                                    song_mapper=board.levelAuthorName,
+                                    difficulty=board.difficulty.difficulty,
+                                    score=score.modifiedScore,
+                                    image_url=board.coverImage,
+                                    beatsaver_url=str(beatsaver_song_url)
                                 )
 
                                 if new_high and new_high not in new_pbs:
-                                    new_pbs.append(new_high)
+                                    new_pbs.append((new_high, board, score))
                             page += 1
 
                         else:
@@ -91,8 +91,8 @@ class ScoreUpdater:
             # Save the updated list now we don't need the old scores
             self._current_high = new_overall
 
-            response: List[(str, Embed)] = []
-            for score in new_pbs:
+            response: List[tuple[str, Embed]] = []
+            for (score, leaderboard, raw_score) in new_pbs:
                 score_string = ''
                 embed = Embed(title=score.song_name, url=score.beatsaver_url)
 
@@ -105,11 +105,17 @@ class ScoreUpdater:
                 else:
                     score_string = score.player.steam_id
 
+                if raw_score.fullCombo:
+                    embed.add_field(name='Full Combo!', value='Great job!', inline=False)
+
                 embed.add_field(name='Score', value=score.score, inline=True)
+                embed.add_field(name='Percent', value=f'{round((raw_score.modifiedScore / leaderboard.maxScore) * 100, 2)}%', inline=True)
                 embed.add_field(name='Difficulty', value=f'{Difficulty(score.difficulty)}', inline=True)
+                embed.add_field(name='Bad Cuts', value=raw_score.badCuts, inline=True)
+                embed.add_field(name='Missed', value=raw_score.missedNotes, inline=True)
 
                 if score in updated_overall: # Beat another player
-                    song_leaderboard = self.database.get_song_scores(score.song_hash, score.difficulty)
+                    song_leaderboard = self.database.get_song_scores(score.song_hash, leaderboard.difficulty.difficulty)
 
                     if len(song_leaderboard) > 1:
                         old_leader = song_leaderboard[1]

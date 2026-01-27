@@ -1,15 +1,20 @@
 import re
-import config
 import discord
-from discord.ext import commands as commands
+import discord.ext.commands as commands
+
+from bot_config import MtgConfig
 
 from .cards import get_card, scryfall_search
 
 
+def _ctx_in_channel(ctx: commands.Context) -> bool:
+    '''Unwrap the context and check if the message was posted in a monitored channel'''
+    return _msg_in_channel(ctx.message)
+
+
 def _msg_in_channel(message: discord.Message) -> bool:
     '''Check if the message was posted in a monitored channel'''
-    return message.channel.id in Mtg._CFG['tasks.mtg.channels']
-
+    return message.channel.id in Mtg._CFG.channels
 
 def _sent_by_bot(message: discord.Message, bot: commands.Bot) -> bool:
     '''Check if the message was sent by the bot'''
@@ -20,7 +25,7 @@ class Mtg(commands.Cog):
     bot: commands.Bot
 
 
-    def __init__(self, bot: commands.Bot, cfg: config.Config):
+    def __init__(self, bot: commands.Bot, cfg: MtgConfig):
         Mtg._CFG = cfg
         self.bot = bot
 
@@ -64,14 +69,14 @@ class Mtg(commands.Cog):
         <query>  Scryfall advanced text query string. See: https://scryfall.com/docs/syntax''',
         usage='<query>',
         brief='Search for a card',
-        checks=[_msg_in_channel],
+        checks=[_ctx_in_channel],
     )
     async def search(self, ctx: commands.Context, *, arg=None):
         if not arg:
             await ctx.message.channel.send('You must specify search criteria. Use !help search for details on how to use this command.')
             return
 
-        page_size = Mtg._CFG['tasks.mtg.page_size']
+        page_size = Mtg._CFG.page_size
 
         try:
             (cards, error) = await scryfall_search(arg, page_size)

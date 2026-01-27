@@ -6,6 +6,8 @@ import config
 from peewee import (SQL, CharField, ForeignKeyField, IntegerField, Model,
                     SqliteDatabase, fn, AutoField, TextField)
 
+from bot_config import ScoresaberConfig
+
 _LOG = logging.getLogger('discord-util').getChild('scoresaber').getChild('database')
 
 # Uncomment these to see DB queries
@@ -85,11 +87,11 @@ class Database:
     '''
     db = database
 
-    def __init__(self, cfg: config.Config):
+    def __init__(self, cfg: ScoresaberConfig):
         '''
         Initialize the database object. Creates tables if necessary.
         '''
-        database.init(cfg['tasks.scoresaber.database'])
+        database.init(cfg.database)
 
         if not self.db.table_exists('player'):
             self.db.create_tables([Player, Score])
@@ -100,7 +102,7 @@ class Database:
         '''
         return Player.select()
 
-    def create_player(self, steam_id: str, discord_id: str, scoresaber_id: str) -> Player:
+    def create_player(self, steam_id: str, discord_id: str | None, scoresaber_id: str) -> Player:
         '''
         Create a new player in the database
         '''
@@ -110,13 +112,13 @@ class Database:
     def update_score(self,
                      player: str,
                      song_hash: str,
-                     difficulty: Difficulty,
+                     difficulty: int,
                      score: int,
                      song_name: str,
                      song_artist: str = '',
                      song_mapper: str = '',
-                     image_url: str = None,
-                     beatsaver_url: str = None) -> Score:
+                     image_url: str | None = None,
+                     beatsaver_url: str | None = None) -> Score | None:
         '''
         Create or update a high score for a specific song by a player.
 
@@ -179,7 +181,7 @@ class Database:
                     .prefetch(Player)
 
 
-    def get_song_scores(self, song_hash: str, difficulty: Difficulty) -> List[Score]:
+    def get_song_scores(self, song_hash: CharField, difficulty: int) -> List[Score]:
         '''
         Get the scores for a particular song
         '''

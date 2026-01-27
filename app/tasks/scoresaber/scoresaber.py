@@ -5,6 +5,9 @@ from discord.ext import tasks
 import discord.ext.commands as commands
 import logging
 from peewee import IntegrityError
+from typing import cast
+
+from bot_config import ScoresaberConfig
 
 from ..task import Task
 
@@ -17,12 +20,12 @@ _LOG = logging.getLogger('discord-util').getChild("scoresaber")
 
 def _is_power_user(ctx: commands.Context) -> bool:
     '''Check if the message was sent by a configured power user'''
-    return ctx.author.id in Scoresaber._CFG['tasks.scoresaber.power_users']
+    return ctx.author.id in Scoresaber._CFG.power_users
 
 
 def _msg_in_channel(ctx: commands.Context) -> bool:
     '''Check if the message was posted in a monitored channel'''
-    return ctx.message.channel.id in Scoresaber._CFG['tasks.scoresaber.channels']
+    return ctx.message.channel.id in Scoresaber._CFG.channels
 
 
 def _format_score(score: Score) -> str:
@@ -43,7 +46,7 @@ class Scoresaber(Task, commands.Cog):
     database: Database
     updater: ScoreUpdater
 
-    def __init__(self, bot: commands.Bot, cfg: config.Config):
+    def __init__(self, bot: commands.Bot, cfg: ScoresaberConfig):
         Task.__init__(self, bot, cfg)
         Scoresaber._CFG = cfg
 
@@ -51,11 +54,18 @@ class Scoresaber(Task, commands.Cog):
         self.updater = ScoreUpdater(self.database)
 
 
-        @tasks.loop(seconds=cfg['tasks.scoresaber.update_interval'])
+        @tasks.loop(seconds=Scoresaber._CFG.update_interval)
         async def run():
             '''Periodically check for new scores'''
             _LOG.debug('Checking for new scores')
-            channel = self.bot.get_channel(cfg['tasks.scoresaber.channels'][0])
+
+            # Fetch the channel and ensure it is a text channel only
+            channel = self.bot.get_channel(Scoresaber._CFG.channels[0])
+            if not type(channel) is discord.TextChannel:
+                pass
+
+            channel = cast(discord.TextChannel, channel)
+
             with self.database.db:
                 new_scores = await self.updater.update()
 
@@ -120,7 +130,7 @@ class Scoresaber(Task, commands.Cog):
         brief='Register a player',
         checks=[_msg_in_channel,_is_power_user],
     )
-    async def register(self, ctx: commands.Context, *args) -> bool:
+    async def register(self, ctx: commands.Context, *args) -> bool | None:
         '''
         Register a new player
         '''
@@ -132,13 +142,18 @@ class Scoresaber(Task, commands.Cog):
 
         # If we were given a discord ID, look them up; they must be in the server users
         if len(args) == 2:
+            # Guild is technically optional, so we need a guard
+            if ctx.message.guild is None:
+                await ctx.message.channel.send(f'Error looking up user')
+                return
+
             discord_user = discord.utils.get(ctx.message.guild.members, name=args[1])
 
             if discord_user is None:
-                await ctx.message.channel.send(f'Discord user "{args[2]}" not found')
+                await ctx.message.channel.send(f'Discord user "{args[1]}" not found')
                 return False
 
-            discord_id = discord_user.id
+            discord_id = str(discord_user.id)
         else:
             discord_id = None
 
@@ -194,8 +209,8 @@ class Scoresaber(Task, commands.Cog):
         List the steam IDs of all registered players
         '''
         with self.database.db:
-            players = [player.steam_id for player in self.database.get_players()]
-            await ctx.message.channel.send(f'Player list: {", ".join(players)}')
+            players = [str(player.steam_id) for player in self.database.get_players()]
+            await ctx.message.channel.send(f'Player list: {', '.join(players)}')
 
     @list.error
     async def list_error(self, ctx: commands.Context, error: commands.CommandError):
@@ -214,7 +229,7 @@ class Scoresaber(Task, commands.Cog):
         usage='<steam_id> [limit]',
         checks=[_msg_in_channel],
     )
-    async def top(self, ctx: commands.Context, *args):
+    async def top(self, ctx: commands.Context, args: tuple[str, int | None]):
         '''
         Get the list of scores for a player by steam ID
         '''
@@ -223,7 +238,8 @@ class Scoresaber(Task, commands.Cog):
 
         player = args[0]
         limit = 10
-        if(len(args) > 1):
+
+        if(len(args) > 1 and args[1] is not None):
             limit = args[1]
 
         with self.database.db:

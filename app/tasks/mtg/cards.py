@@ -76,7 +76,7 @@ async def get_card(name: str, set: str = '') -> 'tuple[str, str, io.BytesIO]':
     return await parse_scryfall_dict(card.scryfallJson)
 
 
-async def scryfall_search(query: str, max: int = 5) -> 'tuple[list[tuple[str, str, io.BytesIO]], str]':
+async def scryfall_search(query: str, max: int = 5) -> 'tuple[list[tuple[str | None, str, io.BytesIO | None]], str]':
     '''Search scryfall for cards'''
     try:
         cards = scrython.cards.Search(q=query)

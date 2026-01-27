@@ -4,14 +4,16 @@ import asyncio
 from discord.ext import tasks
 from discord.ext.commands import Bot
 
+from bot_config import RunConfig
+
 class Task:
-    CFG: config.Config
+    CFG: RunConfig
     bot: Bot
 
     task: asyncio.Task
     _run: tasks.Loop
 
-    def __init__(self, bot: Bot, config: config.Config):
+    def __init__(self, bot: Bot, config: RunConfig):
         self.bot = bot
         self.CFG = config
 
