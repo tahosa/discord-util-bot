@@ -1,8 +1,7 @@
 import logging
-from typing import List
+from typing import List, Tuple
 from enum import Enum
 
-import config
 from peewee import (SQL, CharField, ForeignKeyField, IntegerField, Model,
                     SqliteDatabase, fn, AutoField, TextField)
 
@@ -118,7 +117,7 @@ class Database:
                      song_artist: str = '',
                      song_mapper: str = '',
                      image_url: str | None = None,
-                     beatsaver_url: str | None = None) -> Score | None:
+                     beatsaver_url: str | None = None) -> Tuple[Score | None, int | None]:
         '''
         Create or update a high score for a specific song by a player.
 
@@ -138,6 +137,7 @@ class Database:
 
             # Default: score wasn't higher than one already in the database
             retval = None
+            old_pb = None
 
             if old_score[0].image_url != image_url:
                 old_score[0].image_url = image_url
@@ -146,14 +146,15 @@ class Database:
                 old_score[0].beatsaver_url = beatsaver_url
 
             if score > old_score[0].score: # Is it higher than what we have?
+                old_pb = old_score[0].score
                 old_score[0].score = score
                 retval = old_score[0]
 
             old_score[0].save()
-            return retval
+            return (retval, old_pb)
 
         else: # New song
-            return Score.create(song_hash=song_hash,
+            return (Score.create(song_hash=song_hash,
                             player=player,
                             score=score,
                             difficulty=difficulty,
@@ -161,7 +162,7 @@ class Database:
                             song_artist=song_artist,
                             song_mapper=song_mapper,
                             image_url=image_url,
-                            beatsaver_url=beatsaver_url)
+                            beatsaver_url=beatsaver_url), None)
 
 
     def get_player_scores(self, player: str, limit: int = 100) -> List[Score]:

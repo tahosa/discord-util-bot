@@ -99,16 +99,14 @@ class Scoresaber(Task, commands.Cog):
         await ctx.message.channel.send('High Scores Updated!')
 
         response = ''
-        if len(new_records) > 0:
-            for record in new_records:
-                response += f'{record}\n'
-        else:
-            response = 'No new high scores.'
-
-        if len(response) > 2000 or quiet:
+        if len(new_records) <= 0:
+            await ctx.message.channel.send('No new high scores.')
+        elif len(new_records) > 20 or quiet:
             await ctx.message.channel.send(f'{len(new_records)} new high scores.')
         else:
-            await ctx.message.channel.send(response)
+            for (score, embed) in new_records:
+                await ctx.message.channel.send(score)
+                await ctx.message.channel.send(embed=embed)
 
 
     @update.error

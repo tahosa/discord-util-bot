@@ -27,7 +27,7 @@ class ScoreUpdater:
         _LOG.debug(f'Found {len(players)} players')
 
         limit = 5 if not force_all else 100
-        new_pbs: List[tuple[Score, ScoresaberLeaderboard, ScoresaberScore]] = []
+        new_pbs: List[tuple[Score, ScoresaberLeaderboard, ScoresaberScore, int | None]] = []
 
         for player in players:
             async with aiohttp.ClientSession() as session:
@@ -57,7 +57,7 @@ class ScoreUpdater:
                                         beatsaver_json = await b.json()
                                         beatsaver_song_url = f'{beatsaver_maps_url}/{beatsaver_json['id']}'
 
-                                new_high = self.database.update_score(
+                                (new_high, old_pb) = self.database.update_score(
                                     player=str(player.steam_id),
                                     song_hash=board.songHash,
                                     song_name=board.songName,
@@ -70,7 +70,7 @@ class ScoreUpdater:
                                 )
 
                                 if new_high and new_high not in new_pbs:
-                                    new_pbs.append((new_high, board, score))
+                                    new_pbs.append((new_high, board, score, old_pb))
                             page += 1
 
                         else:
@@ -92,7 +92,7 @@ class ScoreUpdater:
             self._current_high = new_overall
 
             response: List[tuple[str, Embed]] = []
-            for (score, leaderboard, raw_score) in new_pbs:
+            for (score, leaderboard, raw_score, old_pb) in new_pbs:
                 score_string = ''
                 embed = Embed(title=score.song_name, url=score.beatsaver_url)
 
@@ -129,6 +129,9 @@ class ScoreUpdater:
                             steam_id = old_leader.player.steam_id
                             score_string += f' beat {steam_id} and'
                             embed.add_field(name='Previous Leader', value=steam_id, inline=True)
+
+                elif old_pb is not None: # New personal best
+                    embed.add_field(name='Previous High Score', value=old_pb, inline=False)
 
 
                 score_string += f' set a new high score!'
